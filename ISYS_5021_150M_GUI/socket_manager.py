@@ -35,3 +35,65 @@ class SocketManager:
 
     def is_connected(self):
         return self.is_listening
+
+    def calculate_checksum(self, data, nrOfTargets, bytesPerTarget):
+        target_list = data[4:]
+        checksum = 0
+        for i in range(nrOfTargets * bytesPerTarget):
+            checksum += target_list[i]
+            checksum &= 0xFFFFFFFF
+        return checksum
+
+    def parse_header(self, data):
+        header_format = '<HHHHHHIHH118x'
+        header_size = struct.calcsize(header_format)
+        
+        if len(data) < header_size:
+            print("Incomplete header data.")
+            return None
+
+        frame_id, fw_major, fw_fix, fw_minor, detections, targets, checksum, bytes_per_target, data_packets = struct.unpack(
+            header_format, data[:header_size]
+        )
+        
+        return detections, targets, data_packets, checksum, bytes_per_target
+
+    def parse_data_packet(self, data):
+        target_format = '<ffffII'
+        target_size = struct.calcsize(target_format)
+        
+        frame_id, number_of_data_packet = struct.unpack('<HH', data[:4])
+        target_list = data[4:]
+        
+        targets = []
+        for i in range(42):
+            target_data = target_list[i * target_size:(i + 1) * target_size]
+            signal_strength, range_, velocity, azimuth, reserved1, reserved2 = struct.unpack(target_format, target_data)
+            
+            if signal_strength == 0 and range_ == 0 and velocity == 0 and azimuth == 0:
+                continue
+            
+            targets.append({
+                'signal_strength': round(signal_strength, 2),
+                'range': round(range_, 2),
+                'velocity': round(velocity, 2),
+                'azimuth': round(azimuth, 2),
+            })
+        
+        return frame_id, number_of_data_packet, targets
+
+    def process_packet(self, header_data, data_packet):
+        detections, targets, data_packets, expected_checksum, bytes_per_target = self.parse_header(header_data)
+        
+        if targets is None:
+            return  # If header parsing failed, return
+        
+        packet_data = header_data + data_packet
+        calculated_checksum = self.calculate_checksum(data_packet, targets, bytes_per_target)
+        
+        if calculated_checksum != expected_checksum:
+            print(f"Checksum: Not Okay")
+        else:
+            print(f"Checksum: Okay")
+            frame_id, data_packet_number, targets_data = self.parse_data_packet(data_packet)
+            return frame_id, targets_data
