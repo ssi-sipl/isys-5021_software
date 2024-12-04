@@ -86,7 +86,7 @@ def main():
             
             print(f"Frame {frame_id} sent")
             frame_id += 1
-            time.sleep(1)  # Delay to mimic radar's frame interval
+            time.sleep(0.1)  # Delay to mimic radar's frame interval
 
 if __name__ == "__main__":
     main()
