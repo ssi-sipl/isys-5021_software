@@ -37,12 +37,6 @@ def parse_header(data):
     
     return detections, targets, data_packets, checksum, bytes_per_target
 
-def truncate_to_significant_digits(value, significant_digits):
-    """Truncate value to a specified number of significant digits."""
-    if value == 0:
-        return 0
-    return round(value, significant_digits - int(math.floor(math.log10(abs(value)))) - 1)
-
 def parse_data_packet(data):
     target_format = '<ffffII'  # Signal Strength, Range, Velocity, Azimuth, Reserved1, Reserved2
     target_size = struct.calcsize(target_format)
@@ -96,8 +90,6 @@ def process_packet(header_data, data_packet):
         parse_data_packet(data_packet)
 
 def main():
-    radar_ip = '192.168.252.10'  # IP of the radar device
-    radar_port = 2050  # Port for radar data transmission
     local_ip = "192.168.252.2"  # Bind to all available interfaces
     local_port = 2050  # Listening on the same port as the radar
 
