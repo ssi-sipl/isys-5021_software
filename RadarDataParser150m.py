@@ -1,13 +1,16 @@
 import socket
 import struct
+import math
 
-def calculate_checksum(data, nrOfTargets,bytesPerTarget):
+def calculate_checksum(data, nrOfTargets, bytesPerTarget):
+    # List of targets (42 targets per packet)
+    target_list = data[4:]
     checksum = 0
     for i in range(nrOfTargets * bytesPerTarget):
-        checksum += data[i]
-        checksum &= 0xFFFFFFFF
+        checksum += target_list[i]
+        checksum &= 0xFFFFFFFF  # Ensure it fits within a 32-bit boundary
     return checksum
-
+    
 def parse_header(data):
     """
     Parse the 256-byte header and print relevant information.
@@ -25,88 +28,77 @@ def parse_header(data):
     )
     
     print(f"Frame ID: {frame_id}")
-    print(f"Firmware Version: {fw_major}.{fw_minor}.{fw_fix}")
-    print(f"Number of Detections: {detections}")
-    print(f"Number of Targets: {targets}")
-    print(f"Bytes per Target: {bytes_per_target}")
-    print(f"Number of Data Packets: {data_packets}")
-    print(f"Checksum: {hex(checksum)}")
+    # print(f"Firmware Version: {fw_major}.{fw_minor}.{fw_fix}")
+    # print(f"Number of Detections: {detections}")
+    print(f"Number of Serials: {targets}")
+    # print(f"Bytes per Target: {bytes_per_target}")
+    # print(f"Number of Data Packets: {data_packets}")
+    # print(f"Checksum: {hex(checksum)}")
     
-    # Return the number of targets, data packets, and the checksum for validation
-    return targets, data_packets, checksum, bytes_per_target
+    return detections, targets, data_packets, checksum, bytes_per_target
 
-def parse_targets(data, targets, data_packets):
-    """
-    Parse the target data from the data packet.
-    Skip the entire packet if all targets are empty.
-    """
+def truncate_to_significant_digits(value, significant_digits):
+    """Truncate value to a specified number of significant digits."""
+    if value == 0:
+        return 0
+    return round(value, significant_digits - int(math.floor(math.log10(abs(value)))) - 1)
+
+def parse_data_packet(data):
     target_format = '<ffffII'  # Signal Strength, Range, Velocity, Azimuth, Reserved1, Reserved2
     target_size = struct.calcsize(target_format)
+
+    frame_id, number_of_data_packet = struct.unpack('<HH', data[:4])
+    target_list = data[4:]
     
-    offset = 0
-    non_empty_targets = False  # Flag to track if there are any non-empty targets in the packet
-    print("\nTarget Details:")
-
-    for packet_index in range(data_packets):
-        print(f"\nData Packet {packet_index + 1}:")
-        packet_non_empty = False  # Flag to track if the current data packet has non-empty targets
+    targets = []
+    for i in range(42):  # 42 targets per packet
+        target_data = target_list[i * target_size:(i + 1) * target_size]
+        signal_strength, range_, velocity, azimuth, reserved1, reserved2 = struct.unpack(target_format, target_data)
         
-        for target_index in range(targets // data_packets):
-            if offset + target_size > len(data):
-                print("Incomplete target data.")
-                return
-            
-            target_data = data[offset:offset + target_size]
-            signal_strength, range_, velocity, azimuth, reserved1, reserved2 = struct.unpack(target_format, target_data)
-
-            # Skip empty targets (all zeros)
-            if signal_strength == 0 and range_ == 0 and velocity == 0 and azimuth == 0:
-                continue  # Skip empty or padded targets
-            
-            # If we found a non-empty target, we set the flag to true
-            packet_non_empty = True
-            non_empty_targets = True
-
-            print(f"Target {packet_index * (targets // data_packets) + target_index + 1}: "
-                  f"Signal Strength: {signal_strength:.2f} dB, Range: {range_:.2f} m, "
-                  f"Velocity: {velocity:.2f} m/s, Azimuth: {azimuth:.2f}°")
-            
-            offset += target_size
+        if signal_strength == 0 and range_ == 0 and velocity == 0 and azimuth == 0:
+            continue
         
-        # If the current packet has no non-empty targets, don't print it
-        if not packet_non_empty:
-            print(f"Data Packet {packet_index + 1} contains only empty targets. Skipping...")
-
-    # If no non-empty targets were found in the entire frame, print a message
-    if not non_empty_targets:
-        print("All targets in the received packet were empty.")
+        targets.append({
+            'signal_strength': round(signal_strength, 2),
+            'range': round(range_, 2),
+            'velocity': round(velocity, 2),
+            'azimuth': round(azimuth, 2),
+        })
+    
+    if targets:
+        print("Serial List:")
+        print(f"{'Serial':<8} {'Signal Strength (dB)':<25} {'Range (m)':<15} {'Velocity (m/s)':<25} {"Direction":<15} {'Azimuth (Deg)'}")
+        print("-" * 110)
+        for idx, target in enumerate(targets, start=1):
+            direction = "Static" if target["velocity"]==0 else "Incomming" if target["velocity"]>0 else "Outgoing"
+            
+            
+            print(f"{idx:<8} {target['signal_strength']:<25} {target['range']:<15} {target["velocity"]:<25} {direction:<15}  {target['azimuth']}")
+    else:
+        print(f"Frame ID: {frame_id}, Data Packet Number: {number_of_data_packet} contains no valid targets.")
 
 def process_packet(header_data, data_packet):
     """
     Process a single pair of packets that includes both the header (256 bytes) and data packet (1024 bytes).
     """
-    targets, data_packets, expected_checksum, bytes_per_target = parse_header(header_data)
+    detections, targets, data_packets, expected_checksum, bytes_per_target = parse_header(header_data)
     
     if targets is None:
         return  # If header parsing failed, return
     
-    # Calculate the checksum over the received data (header + data packet)
     packet_data = header_data + data_packet  # Concatenate header and data
     calculated_checksum = calculate_checksum(data_packet, targets, bytes_per_target)
     
-    # Compare the calculated checksum with the checksum in the header
     if calculated_checksum != expected_checksum:
-        print(f"Checksum mismatch: Calculated {calculated_checksum} != Expected {expected_checksum}")
+        print(f"Checksum: Not Okay")
     else:
-        print(f"Checksum valid: {calculated_checksum}")
-
-        # Parse the target data from the packet
-        parse_targets(data_packet, targets, data_packets)
+        print(f"Checksum: Okay")
+        parse_data_packet(data_packet)
 
 def main():
     radar_ip = '192.168.252.10'  # IP of the radar device
     radar_port = 2050  # Port for radar data transmission
-    local_ip = "127.0.0.1"  # Bind to all available interfaces
+    local_ip = "192.168.252.2"  # Bind to all available interfaces
     local_port = 2050  # Listening on the same port as the radar
 
     header_size = 256  # Header packet size
@@ -122,20 +114,13 @@ def main():
         while True:
             frame_count += 1
 
-            # Receive both header (256 bytes) and data packet (1024 bytes) in sequence
             header_data, addr = sock.recvfrom(header_size)
-            print(f"Received header data from {addr}")
-
-            # Receive the corresponding data packet
             data_packet, addr = sock.recvfrom(data_packet_size)
-            print(f"Received data packet from {addr}")
-            print(f"Packet sizes: Header = {len(header_data)}, Data Packet = {len(data_packet)}")
 
-            # Process the header and data packet
             process_packet(header_data, data_packet)
 
-            print("-" * 50)
             print(f"Total frames received: {frame_count}")
+            print("-" * 50)
 
 if __name__ == "__main__":
     main()
