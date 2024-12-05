@@ -9,27 +9,33 @@ class RadarApp:
         self.root = tk.Tk()
         self.root.title("Radar GUI")
         self.data_manager = DataManager()
-        self.socket_manager = SocketManager("192.168.252.2", 2050, self.process_data)
+        self.socket_manager = SocketManager("127.0.0.1", 2050, self.process_data)
         self.build_gui()
 
     def build_gui(self):
         # Connect/Disconnect Button
-        self.connect_btn = tk.Button(self.root, text="Connect", command=self.toggle_connection)
-        self.connect_btn.pack()
+       # Create a horizontal frame
+        button_frame = tk.Frame(self.root)
+        button_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
+
+        # Connect Button
+        self.connect_btn = tk.Button(button_frame, text="Connect", command=self.toggle_connection)
+        self.connect_btn.pack(side=tk.LEFT, padx=5)
 
         # Clear Button
-        self.clear_btn = tk.Button(self.root, text="Clear", command=self.clear_display)
-        self.clear_btn.pack()
+        self.clear_btn = tk.Button(button_frame, text="Clear", command=self.clear_display)
+        self.clear_btn.pack(side=tk.LEFT, padx=5)
 
         # Save JSON Button
-        self.save_btn = tk.Button(self.root, text="Save to JSON", command=self.save_to_json)
-        self.save_btn.pack()
+        self.save_btn = tk.Button(button_frame, text="Save to JSON", command=self.save_to_json)
+        self.save_btn.pack(side=tk.LEFT, padx=5)
 
         # Frame ID Dropdown
         self.frame_id_var = tk.StringVar()
-        self.frame_id_dropdown = ttk.Combobox(self.root, textvariable=self.frame_id_var)
+        self.frame_id_dropdown = ttk.Combobox(button_frame, textvariable=self.frame_id_var)
         self.frame_id_dropdown.bind("<<ComboboxSelected>>", self.display_by_frame_id)
-        self.frame_id_dropdown.pack()
+        self.frame_id_dropdown.pack(side=tk.LEFT, padx=5)
+
 
         # Data Display
         self.text_display = tk.Text(self.root, height=20, width=80)

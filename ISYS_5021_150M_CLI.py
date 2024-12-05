@@ -61,13 +61,13 @@ def parse_data_packet(data):
     
     if targets:
         print("Serial List:")
-        print(f"{'Serial':<8} {'Signal Strength (dB)':<25} {'Range (m)':<15} {'Velocity (m/s)':<25} {"Direction":<15} {'Azimuth (Deg)'}")
+        print(f"{'Serial':<8} {'Signal Strength (dB)':<25} {'Range (m)':<15} {'Velocity (m/s)':<25} {'Direction':<15} {'Azimuth (Deg)'}")
         print("-" * 110)
         for idx, target in enumerate(targets, start=1):
             direction = "Static" if target["velocity"]==0 else "Incomming" if target["velocity"]>0 else "Outgoing"
             
             
-            print(f"{idx:<8} {target['signal_strength']:<25} {target['range']:<15} {target["velocity"]:<25} {direction:<15}  {target['azimuth']}")
+            print(f"{idx:<8} {target['signal_strength']:<25} {target['range']:<15} {target['velocity']:<25} {direction:<15}  {target['azimuth']}")
     else:
         print(f"Frame ID: {frame_id}, Data Packet Number: {number_of_data_packet} contains no valid targets.")
 
@@ -90,7 +90,7 @@ def process_packet(header_data, data_packet):
         parse_data_packet(data_packet)
 
 def main():
-    local_ip = "192.168.252.2"  # Bind to all available interfaces
+    local_ip = "127.0.0.1"  # Bind to all available interfaces
     local_port = 2050  # Listening on the same port as the radar
 
     header_size = 256  # Header packet size
@@ -108,6 +108,7 @@ def main():
 
             header_data, addr = sock.recvfrom(header_size)
             data_packet, addr = sock.recvfrom(data_packet_size)
+            print("Packet Recieved")
 
             process_packet(header_data, data_packet)
 

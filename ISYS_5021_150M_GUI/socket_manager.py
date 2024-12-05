@@ -13,16 +13,36 @@ class SocketManager:
 
     def connect(self):
         if not self.is_listening:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.socket.bind((self.local_ip, self.local_port))
-            self.is_listening = True
-            self.thread = threading.Thread(target=self.listen, daemon=True)
-            self.thread.start()
+            try:
+                self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                self.socket.bind((self.local_ip, self.local_port))
+                self.is_listening = True
+                self.thread = threading.Thread(target=self.listen, daemon=True)
+                self.thread.start()
+                print("Listening Started.")
+            except Exception as e:
+                print(f"Error during connection: {e}")
+                if self.socket:
+                    self.socket.close()
+                    self.socket = None
+                self.is_listening = False
+
 
     def disconnect(self):
-        self.is_listening = False
-        if self.socket:
-            self.socket.close()
+        if self.is_listening:
+            self.is_listening = False
+            if self.socket:
+                try:
+                    self.socket.close()
+                    print("Socket successfully closed.")
+                except Exception as e:
+                    print(f"Error closing socket: {e}")
+                finally:
+                    self.socket = None  # Ensure socket is properly reset
+            else:
+                print("Socket was already None.")
+        else:
+            print("Already disconnected.")
 
     def listen(self):
         while self.is_listening:
@@ -30,8 +50,14 @@ class SocketManager:
                 header_data, _ = self.socket.recvfrom(256)
                 data_packet, _ = self.socket.recvfrom(1012)
                 self.data_callback(header_data, data_packet)
-            except Exception as e:
+            except socket.error as e:
+                if not self.is_listening:
+                    print("Listening stopped gracefully.")
+                    break
                 print(f"Socket error: {e}")
+            except Exception as e:
+                print(f"Unexpected error: {e}")
+
 
     def is_connected(self):
         return self.is_listening
