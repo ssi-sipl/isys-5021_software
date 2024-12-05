@@ -52,7 +52,7 @@ class SocketManager:
                 self.data_callback(header_data, data_packet)
             except socket.error as e:
                 if not self.is_listening:
-                    print("Listening stopped gracefully.")
+                    print("Listening stopped.")
                     break
                 print(f"Socket error: {e}")
             except Exception as e:

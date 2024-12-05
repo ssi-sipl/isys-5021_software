@@ -5,13 +5,10 @@ class DataManager:
         self.history = {}
 
     def save_packet(self, frame_id, targets):
-        if frame_id not in self.history:
-            self.history[frame_id] = []
-        self.history[frame_id].append(targets)  # Save targets for each frame ID
+        self.history[frame_id] = targets  # Directly map frame_id to its targets
 
     def get_by_frame_id(self, frame_id):
-        # Retrieve all serials for a specific frame ID
-        return self.history.get(frame_id, [])
+        return self.history.get(frame_id)  # Return the list of targets for the frame_id
 
     def save_to_json(self, filename):
         with open(filename, 'w') as file:
