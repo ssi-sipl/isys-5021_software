@@ -13,7 +13,6 @@ class RadarApp:
         self.build_gui()
 
     def build_gui(self):
-        # Connect/Disconnect Button
         button_frame = tk.Frame(self.root)
         button_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
 
