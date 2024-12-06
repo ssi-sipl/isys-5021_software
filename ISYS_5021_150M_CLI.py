@@ -90,7 +90,8 @@ def process_packet(header_data, data_packet):
         parse_data_packet(data_packet)
 
 def main():
-    local_ip = "127.0.0.1"  # Bind to all available interfaces
+    # local_ip = "127.0.0.1"  # Bind to all available interfaces
+    local_ip = "192.168.252.2"  # Bind to all available interfaces
     local_port = 2050  # Listening on the same port as the radar
 
     header_size = 256  # Header packet size
