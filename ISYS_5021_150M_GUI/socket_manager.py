@@ -19,7 +19,7 @@ class SocketManager:
                 self.is_listening = True
                 self.thread = threading.Thread(target=self.listen, daemon=True)
                 self.thread.start()
-                print("Listening Started.")
+                # print("Listening Started.")
             except Exception as e:
                 print(f"Error during connection: {e}")
                 if self.socket:
@@ -34,7 +34,7 @@ class SocketManager:
             if self.socket:
                 try:
                     self.socket.close()
-                    print("Socket successfully closed.")
+                    # print("Socket successfully closed.")
                 except Exception as e:
                     print(f"Error closing socket: {e}")
                 finally:
@@ -52,7 +52,7 @@ class SocketManager:
                 self.data_callback(header_data, data_packet)
             except socket.error as e:
                 if not self.is_listening:
-                    print("Listening stopped.")
+                    # print("Listening stopped.")
                     break
                 print(f"Socket error: {e}")
             except Exception as e:
@@ -99,12 +99,16 @@ class SocketManager:
             if signal_strength == 0 and range_ == 0 and velocity == 0 and azimuth == 0:
                 continue
             
-            targets.append({
+            
+            value_dict = {
                 'signal_strength': round(signal_strength, 2),
                 'range': round(range_, 2),
                 'velocity': round(velocity, 2),
                 'azimuth': round(azimuth, 2),
-            })
+            }
+            
+            targets.append(value_dict)
+            # print("Target Type: ", type(targets))
         
         return frame_id, number_of_data_packet, targets
 
@@ -114,12 +118,15 @@ class SocketManager:
         if targets is None:
             return  # If header parsing failed, return
         
+        
+
+        
         packet_data = header_data + data_packet
         calculated_checksum = self.calculate_checksum(data_packet, targets, bytes_per_target)
         
         if calculated_checksum != expected_checksum:
-            print(f"Checksum: Not Okay")
+            return
         else:
-            print(f"Checksum: Okay")
+            # print(f"Checksum: Okay")
             frame_id, data_packet_number, targets_data = self.parse_data_packet(data_packet)
             return frame_id, targets_data

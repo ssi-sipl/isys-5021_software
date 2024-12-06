@@ -3,13 +3,14 @@ from tkinter import ttk, filedialog
 from socket_manager import SocketManager
 from data_manager import DataManager
 import struct
+import json
 
 class RadarApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("150M DATA PARSER (ISYS 5021)")
         self.data_manager = DataManager()
-        self.socket_manager = SocketManager("127.0.0.1", 2050, self.process_data)
+        self.socket_manager = SocketManager("192.168.252.2", 2050, self.process_data)
         self.build_gui()
 
     def build_gui(self):
@@ -76,22 +77,30 @@ class RadarApp:
 
     def display_by_frame_id(self, event):
         frame_id = self.frame_id_var.get()
+
+        # print(f"Selected Frame ID: {frame_id}")
         serials = self.data_manager.get_by_frame_id(frame_id)
+        
+        # Debugging: Check the format of serials
+        # print(f"Retrieved Serial Data: {serials}")  # Should print a list of dictionaries
+
         self.clear_display()
 
         if serials:
             self.text_display.insert(tk.END, f"Serial Data for Frame ID: {frame_id}\n")
             self.text_display.insert(tk.END, "-" * 50 + "\n")
-            for serial in serials:
-                for idx, target in enumerate(serial, start=1):
-                    direction = "Static" if target["velocity"] == 0 else "Incoming" if target["velocity"] > 0 else "Outgoing"
-                    self.text_display.insert(tk.END, f"Serial {idx}: "
-                                                     f"Signal Strength: {target['signal_strength']} dB, "
-                                                     f"Range: {target['range']} m, "
-                                                     f"Velocity: {target['velocity']} m/s, "
-                                                     f"Direction: {direction}, "
-                                                     f"Azimuth: {target['azimuth']}°\n")
-                self.text_display.insert(tk.END, "-" * 50 + "\n")
+            
+            for idx, target in enumerate(serials, start=1):
+                
+                direction = "Static" if target["velocity"] == 0 else "Incoming" if target["velocity"] > 0 else "Outgoing"
+                self.text_display.insert(tk.END, f"\nFrame ID: {frame_id}\n"f"Serial {idx}: \n"
+                                             f"Signal Strength: {target['signal_strength']} dB\n"
+                                             f"Range: {target['range']} m\n"
+                                             f"Velocity: {target['velocity']} m/s\n"
+                                             f"Direction: {direction}\n"
+                                             f"Azimuth: {target['azimuth']}°\n")
+                
+            self.text_display.insert(tk.END, "-" * 50 + "\n")
         else:
             self.text_display.insert(tk.END, "No serial data available for this Frame ID.\n")
 
@@ -99,8 +108,11 @@ class RadarApp:
         frame_id, targets = self.socket_manager.process_packet(header_data, data_packet)
         if not targets:
             return
+        
+        
 
         self.data_manager.save_packet(frame_id, targets)
+        # print(f"Updated history: {self.data_manager.history}")
         self.frame_id_dropdown['values'] = list(self.data_manager.history.keys())
         self.clear_display()
         self.text_display.insert(tk.END, f"\n{'-' * 10}FRAME START{'-' * 10}")
